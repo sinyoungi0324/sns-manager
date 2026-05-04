@@ -363,7 +363,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Noto San
         </div>
         <div class="form-group">
           <label class="form-label">시간 (24시간)</label>
-          <input class="form-input" id="f-time" type="time"/>
+          <div style="display:flex;align-items:center;gap:8px">
+      <input class="form-input" id="f-time-h" type="number" min="0" max="23" placeholder="시" style="text-align:center;flex:1" inputmode="numeric"/>
+      <span style="font-size:20px;font-weight:700;color:var(--text2)">:</span>
+      <input class="form-input" id="f-time-m" type="number" min="0" max="59" placeholder="분" style="text-align:center;flex:1" inputmode="numeric"/>
+    </div>
         </div>
       </div>
       <div class="form-group">
@@ -433,7 +437,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Noto San
       </div>
       <div class="form-group">
         <label class="form-label">시간 (24시간)</label>
-        <input class="form-input" id="sf-time" type="time"/>
+        <div style="display:flex;align-items:center;gap:8px">
+      <input class="form-input" id="sf-time-h" type="number" min="0" max="23" placeholder="시" style="text-align:center;flex:1" inputmode="numeric"/>
+      <span style="font-size:20px;font-weight:700;color:var(--text2)">:</span>
+      <input class="form-input" id="sf-time-m" type="number" min="0" max="59" placeholder="분" style="text-align:center;flex:1" inputmode="numeric"/>
+    </div>
       </div>
       <div class="form-group">
         <label class="form-label">메모</label>
@@ -970,7 +978,7 @@ function openAddModal(){
   const today=new Date().toISOString().slice(0,10);
   document.getElementById('f-title').value='';
   document.getElementById('f-date').value=today;
-  document.getElementById('f-time').value='';
+  document.getElementById('f-time-h').value='';document.getElementById('f-time-m').value='';
   document.getElementById('f-caption').value='';
   document.getElementById('f-notes').value='';
   state.selectedPlatforms=[];
@@ -992,7 +1000,7 @@ function openEditModal(id){
   document.getElementById('modalTitle').textContent='스케줄 수정';
   document.getElementById('f-title').value=s.title||'';
   document.getElementById('f-date').value=s.date||'';
-  document.getElementById('f-time').value=s.time||'';
+  if(s.time){const[hh,mm]=s.time.split(':');document.getElementById('f-time-h').value=parseInt(hh)||'';document.getElementById('f-time-m').value=parseInt(mm)||'';}else{document.getElementById('f-time-h').value='';document.getElementById('f-time-m').value='';}
   document.getElementById('f-caption').value=s.caption||'';
   document.getElementById('f-notes').value=s.notes||'';
   state.selectedPlatforms=[...(s.platforms||[])];
@@ -1134,7 +1142,7 @@ function saveSchedule(){
   const data={
     id:state.editId||uid(),
     title,date,
-    time:document.getElementById('f-time').value,
+    time:(()=>{const h=document.getElementById('f-time-h').value;const m=document.getElementById('f-time-m').value;return h!==''&&m!==''?String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'):'';})(),
     keyword,
     platforms:state.selectedPlatforms,
     caption:document.getElementById('f-caption').value,
@@ -1165,7 +1173,7 @@ function openSubModal(parentId,subId,e){
   const sub=subId?(parent?.subs||[]).find(s=>s.id===subId):null;
   document.getElementById('subModalTitle').textContent=subId?'하위 스케줄 수정':'하위 스케줄 추가';
   document.getElementById('sf-title').value=sub?.title||'';
-  document.getElementById('sf-time').value=sub?.time||'';
+  if(sub?.time){const[hh,mm]=sub.time.split(':');document.getElementById('sf-time-h').value=parseInt(hh)||'';document.getElementById('sf-time-m').value=parseInt(mm)||'';}else{document.getElementById('sf-time-h').value='';document.getElementById('sf-time-m').value='';}
   document.getElementById('sf-notes').value=sub?.notes||'';
   document.getElementById('subModal').classList.add('show');
 }
@@ -1178,7 +1186,7 @@ function saveSubSchedule(){
   const parent=state.schedules.find(s=>s.id===state.subParentId);
   if(!parent)return;
   if(!parent.subs)parent.subs=[];
-  const data={id:state.subEditId||uid(),title,time:document.getElementById('sf-time').value,notes:document.getElementById('sf-notes').value,status:'pending'};
+  const data={id:state.subEditId||uid(),title,time:(()=>{const h=document.getElementById('sf-time-h').value;const m=document.getElementById('sf-time-m').value;return h!==''&&m!==''?String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'):'';})(),notes:document.getElementById('sf-notes').value,status:'pending'};
   if(state.subEditId){
     parent.subs=parent.subs.map(s=>s.id===state.subEditId?data:s);
   } else {
@@ -1344,6 +1352,13 @@ function showToast(msg){
   el.className='toast';el.textContent=msg;
   document.body.appendChild(el);
   setTimeout(()=>el.remove(),2200);
+}
+
+// ── 시간 입력 포맷 (24시간) ──────────────────────────────
+function formatTimeInput(el){
+  let v=el.value.replace(/[^0-9]/g,'');
+  if(v.length>=3)v=v.slice(0,2)+':'+v.slice(2,4);
+  el.value=v;
 }
 
 // ── PWA 서비스워커 ─────────────────────────────────────────
