@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!-- SNS Manager v2.5 -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8"/>
@@ -120,9 +120,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Noto San
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:flex-end}
 .modal-overlay.show{display:flex}
-.modal{background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-height:92vh;overflow-y:auto;padding-bottom:calc(var(--safe-bottom) + 16px);animation:slideUp .3s cubic-bezier(.34,1.1,.64,1)}
+.modal{background:var(--surface);border-radius:24px 24px 0 0;width:100%;height:92vh;overflow-y:auto;padding-bottom:calc(var(--safe-bottom) + 16px);animation:slideUp .3s cubic-bezier(.34,1.1,.64,1);-webkit-overflow-scrolling:touch}
 .modal-handle{width:36px;height:4px;background:var(--border);border-radius:100px;margin:12px auto 8px}
-.modal-header{padding:12px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:10}
+.modal-header{padding:14px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:10;box-shadow:0 1px 0 var(--border)}
 .modal-header h3{font-size:17px;font-weight:700}
 .modal-close{background:var(--bg);border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--text2)}
 .modal-body{padding:16px 20px}
@@ -424,10 +424,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Noto San
       </div>
 
       <div class="form-group">
-        <label class="form-label">📎 사진 / 영상 첨부</label>
-        <input type="file" id="f-files" multiple accept="image/*,video/*" style="display:none" onchange="handleFileUpload(this)"/>
-        <button onclick="document.getElementById('f-files').click()" style="width:100%;background:var(--bg);border:1.5px dashed var(--border);border-radius:var(--radius-sm);padding:14px;font-size:14px;color:var(--text2);cursor:pointer;font-family:inherit">+ 파일 추가</button>
-        <div id="f-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
+        <label class="form-label">📷 사진 첨부 (자동 압축)</label>
+        <input type="file" id="f-files" multiple accept="image/*" style="display:none" onchange="handleFileUpload(this)"/>
+        <button onclick="document.getElementById('f-files').click()" style="width:100%;background:var(--bg);border:1.5px dashed var(--border);border-radius:var(--radius-sm);padding:14px;font-size:14px;color:var(--text2);cursor:pointer;font-family:inherit">📷 사진 추가</button>
+        <div id="f-preview" style="margin-top:8px"></div>
       </div>
       <div class="form-group">
         <label class="form-label">메모</label>
@@ -1010,6 +1010,7 @@ function confirmDelete(id){
 
 // ── 스케줄 추가/수정 모달 ─────────────────────────────────
 function openAddModal(){
+  try{
   state.editId=null;
   document.getElementById('modalTitle').textContent='스케줄 추가';
   const today=new Date().toISOString().slice(0,10);
@@ -1031,6 +1032,8 @@ function openAddModal(){
   updateTiktokBox();
   document.getElementById('f-tiktok-sound').value='';
   document.getElementById('addModal').classList.add('show');
+  setTimeout(()=>{const m=document.querySelector('#addModal .modal');if(m)m.scrollTop=0;},50);
+  }catch(e){alert('오류: '+e.message);}
 }
 
 function openEditModal(id){
@@ -1059,6 +1062,8 @@ function openEditModal(id){
   updateTiktokBox();
   document.getElementById('f-tiktok-sound').value=s.tiktokSound||'';
   document.getElementById('addModal').classList.add('show');
+  setTimeout(()=>{const m=document.querySelector('#addModal .modal');if(m)m.scrollTop=0;},50);
+  }catch(e){alert('오류: '+e.message);}
 }
 
 function closeAddModal(){document.getElementById('addModal').classList.remove('show');}
@@ -1410,24 +1415,33 @@ function formatTimeInput(el){
   el.value=v;
 }
 
-// ── 파일 업로드 & 미리보기 ───────────────────────────────
+// ── 사진 업로드 (압축) ───────────────────────────────────
 let uploadedFiles = [];
+const MAX_SIZE = 800; // 최대 800px로 압축
+const QUALITY = 0.7;  // 70% 품질
 
 function handleFileUpload(input) {
   const files = Array.from(input.files);
   files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const fileData = {
-        id: uid(),
-        name: file.name,
-        type: file.type,
-        dataUrl: e.target.result,
-      };
-      uploadedFiles.push(fileData);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      // 압축
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > MAX_SIZE || h > MAX_SIZE) {
+        if (w > h) { h = Math.round(h * MAX_SIZE / w); w = MAX_SIZE; }
+        else { w = Math.round(w * MAX_SIZE / h); h = MAX_SIZE; }
+      }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', QUALITY);
+      URL.revokeObjectURL(url);
+      uploadedFiles.push({ id: uid(), name: file.name, type: 'image/jpeg', dataUrl });
       renderFilePreview();
     };
-    reader.readAsDataURL(file);
+    img.src = url;
   });
   input.value = '';
 }
@@ -1436,17 +1450,12 @@ function renderFilePreview() {
   const el = document.getElementById('f-preview');
   if (!el) return;
   if (uploadedFiles.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = '<div class="file-preview-grid">' + uploadedFiles.map((f, i) => {
-    const isVideo = f.type.startsWith('video/');
-    const media = isVideo
-      ? `<video src="${f.dataUrl}" style="width:100%;height:100%;object-fit:cover"></video>`
-      : `<img src="${f.dataUrl}" style="width:100%;height:100%;object-fit:cover"/>`;
-    return `<div class="file-thumb">
-      ${media}
+  el.innerHTML = '<div class="file-preview-grid">' + uploadedFiles.map((f, i) => `
+    <div class="file-thumb">
+      <img src="${f.dataUrl}" style="width:100%;height:100%;object-fit:cover" loading="lazy"/>
       <button class="del-file" onclick="removeFile(${i})">✕</button>
-      <span class="file-type">${isVideo ? '🎬' : '📷'}</span>
-    </div>`;
-  }).join('') + '</div>';
+      <span class="file-type">📷</span>
+    </div>`).join('') + '</div>';
 }
 
 function removeFile(i) {
@@ -1455,18 +1464,12 @@ function removeFile(i) {
 }
 
 function renderDetailFiles(files) {
-  if (!files || files.length === 0) return '<div style="font-size:13px;color:var(--text3)">첨부 파일 없음</div>';
-  return '<div class="file-preview-grid">' + files.map(f => {
-    const isVideo = f.type && f.type.startsWith('video/');
-    const media = isVideo
-      ? `<video src="${f.dataUrl}" controls style="width:100%;height:100%;object-fit:cover;border-radius:10px"></video>`
-      : `<img src="${f.dataUrl}" style="width:100%;height:100%;object-fit:cover"/>`;
-    return `<div class="file-thumb" style="aspect-ratio:unset;min-height:100px">
-      ${media}
-      <a href="${f.dataUrl}" download="${f.name}" style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.6);color:white;font-size:10px;padding:3px 7px;border-radius:4px;text-decoration:none">⬇ 저장</a>
-      <span class="file-type">${isVideo ? '🎬' : '📷'}</span>
-    </div>`;
-  }).join('') + '</div>';
+  if (!files || files.length === 0) return '<div style="font-size:13px;color:var(--text3)">첨부된 사진 없음</div>';
+  return '<div class="file-preview-grid">' + files.map(f => `
+    <div class="file-thumb" style="aspect-ratio:unset;min-height:120px">
+      <img src="${f.dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" loading="lazy"/>
+      <a href="${f.dataUrl}" download="${f.name}" style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.65);color:white;font-size:11px;padding:4px 8px;border-radius:6px;text-decoration:none">⬇ 저장</a>
+    </div>`).join('') + '</div>';
 }
 
 // ── 틱톡 음원 토글 ──────────────────────────────────────
