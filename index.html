@@ -1013,7 +1013,6 @@ function openAddModal(){
   renderPlatformPills();
   renderKeywordGroups('','','');
   renderChecklistForm();
-  setStatus('pending');
   document.getElementById('exampleNoteBox').style.display='none';
   uploadedFiles=[];
   renderFilePreview();
@@ -1163,8 +1162,10 @@ function addCheckItem(){
 
 function setStatus(s){
   state.selectedStatus=s;
-  document.getElementById('status-pending').className='plat-pill'+(s==='pending'?' sel-pending':'');
-  document.getElementById('status-done').className='plat-pill'+(s==='done'?' sel-done':'');
+  const ep=document.getElementById('status-pending');
+  const ed=document.getElementById('status-done');
+  if(ep)ep.className='plat-pill'+(s==='pending'?' sel-pending':'');
+  if(ed)ed.className='plat-pill'+(s==='done'?' sel-done':'');
 }
 
 function saveSchedule(){
