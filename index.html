@@ -213,13 +213,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Noto San
 .btn-danger{background:#FFEBEE;color:var(--youtube);border:none;border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;width:100%}
 .confirm-row{display:flex;gap:8px;margin-top:10px}
 
-/* FILE PREVIEW */
-.file-preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
-.file-thumb{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--bg)}
-.file-thumb img,.file-thumb video{width:100%;height:100%;object-fit:cover}
-.file-thumb .del-file{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.file-thumb .file-type{position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.6);color:white;font-size:10px;padding:2px 5px;border-radius:4px}
-
 /* NOTIFICATION PERMISSION */
 .notif-banner{background:linear-gradient(135deg,#FFF8F0,#FFF3E0);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;border:1px solid #FFE0B2}
 .notif-banner button{background:var(--red);color:white;border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0}
@@ -423,12 +416,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Noto San
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">📷 사진 첨부 (자동 압축)</label>
-        <input type="file" id="f-files" multiple accept="image/*" style="display:none" onchange="handleFileUpload(this)"/>
-        <button onclick="document.getElementById('f-files').click()" style="width:100%;background:var(--bg);border:1.5px dashed var(--border);border-radius:var(--radius-sm);padding:14px;font-size:14px;color:var(--text2);cursor:pointer;font-family:inherit">📷 사진 추가</button>
-        <div id="f-preview" style="margin-top:8px"></div>
-      </div>
+
       <div class="form-group">
         <label class="form-label">메모</label>
         <textarea class="form-textarea" id="f-notes" placeholder="내부 메모 (비공개)" style="min-height:70px"></textarea>
@@ -916,12 +904,6 @@ function renderDetail(){
     html+=`</div>`;
   }
 
-  // 파일
-  html+=`<div class="detail-section">
-    <div class="detail-section-title">📎 첨부 파일</div>
-    ${renderDetailFiles(s.files)}
-  </div>`;
-
   // 틱톡 음원
   if(s.tiktokSound){
     html+=`<div class="detail-section">
@@ -1027,8 +1009,6 @@ function openAddModal(){
   renderKeywordGroups('','','');
   renderChecklistForm();
   document.getElementById('exampleNoteBox').style.display='none';
-  uploadedFiles=[];
-  renderFilePreview();
   updateTiktokBox();
   document.getElementById('f-tiktok-sound').value='';
   document.getElementById('addModal').classList.add('show');
@@ -1057,8 +1037,6 @@ function openEditModal(id){
   const ex=findExampleNote(s.keyword);
   if(ex){document.getElementById('exampleNoteBox').style.display='block';document.getElementById('f-exampleNote').textContent=ex;}
   else document.getElementById('exampleNoteBox').style.display='none';
-  uploadedFiles=s.files?[...s.files]:[];
-  renderFilePreview();
   updateTiktokBox();
   document.getElementById('f-tiktok-sound').value=s.tiktokSound||'';
   document.getElementById('addModal').classList.add('show');
@@ -1202,7 +1180,6 @@ function saveSchedule(){
     artistId:document.getElementById('f-artist').value,
     status:state.selectedStatus,
     checklist:state.checklist,
-    files:[...uploadedFiles],
     tiktokSound:document.getElementById('f-tiktok-sound')?.value||'',
     subs:state.editId?state.schedules.find(s=>s.id===state.editId)?.subs||[]:[]
   };
@@ -1413,63 +1390,6 @@ function formatTimeInput(el){
   let v=el.value.replace(/[^0-9]/g,'');
   if(v.length>=3)v=v.slice(0,2)+':'+v.slice(2,4);
   el.value=v;
-}
-
-// ── 사진 업로드 (압축) ───────────────────────────────────
-let uploadedFiles = [];
-const MAX_SIZE = 800; // 최대 800px로 압축
-const QUALITY = 0.7;  // 70% 품질
-
-function handleFileUpload(input) {
-  const files = Array.from(input.files);
-  files.forEach(file => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      // 압축
-      const canvas = document.createElement('canvas');
-      let w = img.width, h = img.height;
-      if (w > MAX_SIZE || h > MAX_SIZE) {
-        if (w > h) { h = Math.round(h * MAX_SIZE / w); w = MAX_SIZE; }
-        else { w = Math.round(w * MAX_SIZE / h); h = MAX_SIZE; }
-      }
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', QUALITY);
-      URL.revokeObjectURL(url);
-      uploadedFiles.push({ id: uid(), name: file.name, type: 'image/jpeg', dataUrl });
-      renderFilePreview();
-    };
-    img.src = url;
-  });
-  input.value = '';
-}
-
-function renderFilePreview() {
-  const el = document.getElementById('f-preview');
-  if (!el) return;
-  if (uploadedFiles.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = '<div class="file-preview-grid">' + uploadedFiles.map((f, i) => `
-    <div class="file-thumb">
-      <img src="${f.dataUrl}" style="width:100%;height:100%;object-fit:cover" loading="lazy"/>
-      <button class="del-file" onclick="removeFile(${i})">✕</button>
-      <span class="file-type">📷</span>
-    </div>`).join('') + '</div>';
-}
-
-function removeFile(i) {
-  uploadedFiles.splice(i, 1);
-  renderFilePreview();
-}
-
-function renderDetailFiles(files) {
-  if (!files || files.length === 0) return '<div style="font-size:13px;color:var(--text3)">첨부된 사진 없음</div>';
-  return '<div class="file-preview-grid">' + files.map(f => `
-    <div class="file-thumb" style="aspect-ratio:unset;min-height:120px">
-      <img src="${f.dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" loading="lazy"/>
-      <a href="${f.dataUrl}" download="${f.name}" style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.65);color:white;font-size:11px;padding:4px 8px;border-radius:6px;text-decoration:none">⬇ 저장</a>
-    </div>`).join('') + '</div>';
 }
 
 // ── 틱톡 음원 토글 ──────────────────────────────────────
