@@ -323,6 +323,21 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Noto San
         </div>
         <button class="btn-main" style="width:100%;border-radius:var(--radius-sm);padding:14px;font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:inherit" onclick="savePin()">PIN 변경</button>
       </div>
+
+      <div class="detail-section" style="margin-top:0">
+        <div class="detail-section-title">💾 데이터 백업 / 복원</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+          사파리 데이터를 지우기 전에 반드시 백업해두세요!<br/>백업 파일을 저장해두면 언제든 복원할 수 있어요.
+        </div>
+        <button onclick="backupData()" style="width:100%;background:#E8F5E9;color:#2E7D32;border:none;border-radius:var(--radius-sm);padding:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:10px">
+          📤 백업 파일 저장
+        </button>
+        <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(this)"/>
+        <button onclick="document.getElementById('restoreFile').click()" style="width:100%;background:#E3F2FD;color:#1565C0;border:none;border-radius:var(--radius-sm);padding:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer">
+          📥 백업 파일로 복원
+        </button>
+      </div>
+
       <div class="detail-section" style="margin-top:0">
         <div class="detail-section-title">앱 정보</div>
         <div style="font-size:14px;color:var(--text2);line-height:1.8">
@@ -1397,6 +1412,58 @@ function updateTiktokBox() {
   const hasTiktok = state.selectedPlatforms.includes('틱톡');
   const box = document.getElementById('tiktokSoundBox');
   if (box) box.style.display = hasTiktok ? 'block' : 'none';
+}
+
+
+// ── 백업 / 복원 ──────────────────────────────────────────
+function backupData() {
+  const data = {
+    schedules: state.schedules,
+    templates: state.templates,
+    artists: state.artists,
+    pin: state.pin,
+    exportedAt: new Date().toLocaleString('ko-KR'),
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `sns-manager-backup-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ 백업 파일이 저장됐어요!');
+}
+
+function restoreData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.schedules || !data.artists) {
+        showToast('❌ 올바른 백업 파일이 아니에요');
+        return;
+      }
+      if (!confirm('현재 데이터를 백업 파일로 덮어쓸까요?')) return;
+      state.schedules = data.schedules || [];
+      state.templates = data.templates || [];
+      state.artists = data.artists || [];
+      if (data.pin) state.pin = data.pin;
+      save();
+      renderDashboard();
+      renderSchedules();
+      renderTemplates();
+      renderArtists();
+      showToast('✅ 복원 완료! 데이터가 돌아왔어요 🎉');
+    } catch(e) {
+      showToast('❌ 파일을 읽을 수 없어요');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
 }
 
 // ── PWA 서비스워커 ─────────────────────────────────────────
